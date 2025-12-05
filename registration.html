@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>  MEIZAN LOANS - Sign In</title>
+    <title>MEIZAN LOANS - Registration</title>
     <script src="https://cdn.tailwindcss.com"></script>
-<script src="firebase-config.js"></script> 
+  <script src="firebase-config.js"></script> 
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -18,7 +18,7 @@
         }
         .container {
             background-color: #ffffff;
-            padding: 2.5rem;
+            padding: 2rem;
             border-radius: 1rem;
             box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
             max-width: 400px;
@@ -58,16 +58,14 @@
 <body>
 
 <div class="container">
-    <h1 class="text-3xl font-extrabold text-center text-green-600 mb-6">MEIZAN LOANS </h1>
-    <h1 class="text-3xl font-extrabold text-center text-green-600 mb-6">Sign in </h1>
-
+    <h1 class="text-3xl font-extrabold text-center text-green-600 mb-6">Create Your Account</h1>
 
     <div id="messageBox" class="hidden" role="alert"></div>
 
-    <form id="signInForm">
+    <form id="registrationForm">
         
         <div class="input-group mb-4">
-            <label for="phone">Phone Number (Your ID)</label>
+            <label for="phone">Phone Number (Used as ID)</label>
             <input 
                 type="tel" 
                 id="phone" 
@@ -77,26 +75,29 @@
             >
         </div>
 
-        <div class="input-group mb-6">
+        <div class="input-group mb-4">
             <label for="password">Password</label>
             <input 
                 type="password" 
                 id="password" 
-                placeholder="Enter your password" 
+                placeholder="Minimum 6 characters" 
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" 
+                minlength="6"
                 required
             >
-            <div class="text-right mt-2">
-                <a href="forgotten password.html" class="text-xs text-orange-500 hover:text-orange-700 font-medium transition duration-200">Forgotten Password?</a>
-            </div>
+        </div>
+
+        <div class="input-group mb-6">
+            <input type="checkbox" id="terms" required class="mr-2 text-green-600 focus:ring-green-500">
+            <label for="terms" class="text-sm font-normal text-gray-600 inline">I agree to the <a href="TERMS AND CONDTIONS.HTML" target="_blank" class="text-orange-500 hover:text-orange-700 font-medium">Terms and Conditions</a>.</label>
         </div>
 
         <button 
             type="submit" 
-            id="signInButton"
+            id="registerButton"
             class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-200 flex items-center justify-center shadow-lg transform hover:scale-[1.01]"
         >
-            <span id="buttonText">Sign In</span>
+            <span id="buttonText">Register Account</span>
             <svg id="loadingSpinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -104,8 +105,8 @@
         </button>
     </form>
 
-    <div class="text-center mt-6">
-        <p class="text-gray-600 text-sm">Don't have an account? <a href="registration.html" class="text-orange-500 hover:text-orange-700 font-medium">Register Now</a></p>
+    <div class="text-center mt-4">
+        <p class="text-gray-600 text-sm">Already have an account? <a href="ENTRY PAGE.HTML" class="text-orange-500 hover:text-orange-700 font-medium">Sign In</a></p>
     </div>
 </div>
 
@@ -113,8 +114,8 @@
 <script type="module">
     // Firebase SDK Imports
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
    
         // ----------------------------------------------------------------------
@@ -122,7 +123,6 @@
         // been REMOVED and is now handled by the 'firebase-config.js' script.
         // We can now access 'app', 'auth', 'db', and 'appId' globally.
         // ----------------------------------------------------------------------
-
 
     // Initialize Firebase Services
     const app = initializeApp(firebaseConfig);
@@ -133,9 +133,9 @@
     window.db = db;
     window.auth = auth;
     window.appId = appId;
-    window.getDoc = getDoc;
+    window.setDoc = setDoc;
     window.doc = doc;
-    window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+    window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
 
     // --- Authentication on Load (Initial Sign-in) ---
     async function initialSignIn() {
@@ -152,15 +152,13 @@
         }
     }
     initialSignIn(); 
-</script>
 
-<script type="module">
     // Get elements
-    const signInForm = document.getElementById('signInForm');
+    const registrationForm = document.getElementById('registrationForm');
     const phoneInput = document.getElementById('phone');
     const passwordInput = document.getElementById('password');
     const messageBox = document.getElementById('messageBox');
-    const signInButton = document.getElementById('signInButton');
+    const registerButton = document.getElementById('registerButton');
     const buttonText = document.getElementById('buttonText');
     const loadingSpinner = document.getElementById('loadingSpinner');
 
@@ -178,86 +176,65 @@
     }
 
     function toggleLoading(isLoading) {
-        signInButton.disabled = isLoading;
-        buttonText.textContent = isLoading ? 'Signing In...' : 'Sign In';
+        registerButton.disabled = isLoading;
+        buttonText.textContent = isLoading ? 'Registering...' : 'Register Account';
         loadingSpinner.classList.toggle('hidden', !isLoading);
     }
 
-    // --- Form Submission Handler (Sign In Logic) ---
-    signInForm.addEventListener('submit', async (e) => {
+    // --- Form Submission Handler (Registration Logic) ---
+    registrationForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         toggleLoading(true);
 
         const phone = phoneInput.value.trim();
         const password = passwordInput.value;
-        const email = phone + "@meizanloans.com"; // Pseudo email for Firebase Auth
+        // Firebase Auth requires an email format. We create a pseudo email from the phone number.
+        const email = phone + "@meizanloans.com"; 
 
         try {
-            // 1. Sign in the user
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const userId = userCredential.user.uid;
-
-            // 2. Fetch user data from Firestore to determine redirect
+            // 1. Create user in Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+            const userId = user.uid;
+            
+            // 2. Save user profile to Firestore
             const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/profile/info`);
-            const userDoc = await getDoc(userDocRef);
+            
+            await setDoc(userDocRef, {
+                phone: phone, // Save the actual phone number
+                email: email, // Save the pseudo email for reference
+                registrationDate: new Date().toISOString(),
+                // This is the status update field for progress tracking
+                registrationStep: 'personal_info',
+                loanStatus: 'Not Applied'
+            });
 
-            let nextUrl = 'APPROVAL.HTML'; // Default redirect to dashboard
+            showMessage("Registration successful! Redirecting...", 'success');
 
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-                
-                // Determine the next step based on registration progress
-                switch(userData.registrationStep) {
-                    case 'personal_info':
-                        nextUrl = 'personal_information.html';
-                        break;
-                    case 'financial_info':
-                        nextUrl = 'financial_information.html';
-                        break;
-                    case 'approved':
-                    case 'withdrawn':
-                    case 'repayment_due':
-                    case 'completed':
-                        // For any other status, go to the final status page
-                        nextUrl = 'APPROVAL.HTML';
-                        break;
-                    default:
-                        // Fallback to the first step if status is missing/unknown
-                        nextUrl = 'personal_information.html';
-                }
-                
-            } else {
-                // Should not happen if registration worked, but handle missing data gracefully
-                console.warn("User data not found in Firestore. Redirecting to first step.");
-                nextUrl = 'personal_information.html';
-            }
-
-            showMessage("Sign in successful! Redirecting...", 'success');
-
-            // 3. Redirect
+            // 3. Redirect to the next step
             setTimeout(() => {
-                window.location.href = nextUrl;
-            }, 1000);
-
+                window.location.href = 'personal_information.html'; 
+            }, 1500);
 
         } catch (error) {
-            console.error("Sign In Error:", error);
-            let errorMessage = "An unknown error occurred. Please check your credentials.";
+            console.error("Registration Error:", error);
+            let errorMessage = "An unknown error occurred during registration. Please try again.";
 
             // Handle common Firebase errors
             switch (error.code) {
-                case 'auth/user-not-found':
-                case 'auth/wrong-password':
-                    errorMessage = "Invalid phone number or password.";
+                case 'auth/email-already-in-use':
+                    errorMessage = "This phone number is already registered. Please sign in or use a different number.";
+                    break;
+                case 'auth/weak-password':
+                    errorMessage = "Password is too weak. Must be at least 6 characters.";
                     break;
                 case 'auth/invalid-email':
                     errorMessage = "Invalid phone number format. Please ensure it is correct.";
                     break;
                 default:
-                    errorMessage = `Sign in failed: ${error.message}`;
+                    errorMessage = `Registration failed: ${error.message}`;
             }
             showMessage(errorMessage, 'error');
-
         } finally {
             toggleLoading(false);
         }

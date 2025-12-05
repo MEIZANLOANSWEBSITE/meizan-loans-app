@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEIZAN LOANS - OTP Verification</title>
+<script src="firebase-config.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fb923c; /* Orange-300 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #16a34a; /* Green-600 */
+        }
+        /* Style for OTP input to center text and provide character spacing */
+        .otp-input-field {
+            text-align: center;
+            font-size: 1.5rem;
+            letter-spacing: 0.5rem;
+            padding: 0.75rem 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-3xl font-extrabold text-center text-[#f97316] mb-2">MEIZAN LOANS</h1>
+    <p class="text-lg text-center font-semibold text-gray-700 mb-6">Verify OTP</p>
+
+    <div id="messageBox" class="hidden p-3 rounded-lg text-white mt-4 text-center"></div>
+
+    <form id="otpForm" class="space-y-6">
+        <div class="input-group">
+            <label for="otpCode">Enter the 6-Digit Code</label>
+            <input type="text" id="otpCode" class="w-full border-2 border-gray-300 rounded-lg focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a] outline-none transition duration-150 otp-input-field" maxlength="6" required pattern="\d{6}">
+        </div>
+
+        <button id="verifyButton" type="submit" class="w-full bg-[#16a34a] hover:bg-[#149543] text-white font-bold py-3 px-4 rounded-lg transition duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+            <span id="buttonText">Verify Code</span>
+            <svg id="loadingSpinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </button>
+    </form>
+
+    <div class="mt-4 text-center">
+        <p class="text-sm text-gray-600 mb-2">Didn't receive the code?</p>
+        <button id="resendButton" class="text-[#f97316] hover:text-[#ea580c] font-semibold transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+            Resend Code
+        </button>
+    </div>
+</div>
+
+<div id="recaptcha-container" style="display: none;"></div>
+
+
+
+
+
+<script type="module">
+    // Firebase SDK Imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    // CRITICAL FIX: Import RecaptchaVerifier
+    import { getAuth,signInWithPhoneNumber, RecaptchaVerifier, signInAnonymously, signInWithCustomToken, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+
+// Import the functions you need from the SDKs you need
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+
+// App ID used for Firestore path construction (e.g., artifacts/meizanloans/...)
+const appId = "meizanloans"; 
+const firebaseConfig = {
+  apiKey: "AIzaSyD1uoq-EYbTEXVvp3xFl2TeTylcI03VoDw",
+  authDomain: "meizan-loans.firebaseapp.com",
+  projectId: "meizan-loans",
+  storageBucket: "meizan-loans.firebasestorage.app",
+  messagingSenderId: "1069728158354",
+  appId: "1:1069728158354:web:52e98096eed5d3f02d4c4b",
+  measurementId: "G-MV0PW489GD"
+};
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+       const auth = getAuth(app);
+    const db = getFirestore(app);
+
+
+    
+    // Expose necessary services/variables globally
+    window.db = db;
+    window.auth = auth;
+    window.appId = appId;
+    window.onAuthStateChanged = onAuthStateChanged;
+    window.getDoc = getDoc;
+    window.doc = doc;
+    window.setDoc = setDoc;
+    window.signInAnonymously = signInAnonymously;
+    window.signInWithCustomToken = signInWithCustomToken;
+    window.sendPasswordResetEmail = sendPasswordResetEmail;
+    window.collection = collection;
+    window.query = query;
+    window.where = where;
+    window.getDocs = getDocs;
+
+    // --- Authentication on Load (Initial Sign-in) ---
+    // This runs once to establish the initial authentication state.
+    async function initialSignIn() {
+        try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+                console.log("Firebase: Signed in with custom token.");
+            } else {
+                await signInAnonymously(auth);
+                console.log("Firebase: Signed in anonymously.");
+            }
+        } catch (error) {
+            console.error("Firebase Auth Error:", error);
+            // The onAuthStateChanged listener in the page script should handle redirection.
+        }
+    }
+
+    initialSignIn(); 
+
+    // --- DOM ELEMENTS ---
+    const otpForm = document.getElementById('otpForm');
+    const otpCodeInput = document.getElementById('otpCode');
+    const verifyButton = document.getElementById('verifyButton');
+    const resendButton = document.getElementById('resendButton');
+    const buttonText = document.getElementById('buttonText');
+    const messageBox = document.getElementById('messageBox');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    // --- UTILITY FUNCTIONS ---
+    function showMessage(message, type, duration = 3000) {
+        messageBox.textContent = message;
+        messageBox.className = `p-3 rounded-lg text-white mt-4 text-center ${
+            type === 'success' ? 'bg-green-500' : 
+            type === 'error' ? 'bg-red-500' : 
+            'bg-blue-500'
+        }`;
+        messageBox.classList.remove('hidden');
+        if (duration > 0) {
+            setTimeout(() => { messageBox.classList.add('hidden'); }, duration);
+        }
+    }
+
+    function toggleLoading(isLoading) {
+        verifyButton.disabled = isLoading;
+        // Keep resend disabled during verification attempt
+        resendButton.disabled = isLoading || resendButton.dataset.cooldown === 'true'; 
+        buttonText.textContent = isLoading ? 'Verifying...' : 'Verify Code';
+        loadingSpinner.classList.toggle('hidden', !isLoading);
+    }
+
+    // --- STATE MANAGEMENT (CRITICAL) ---
+    // The phone number and the confirmationResult are CRUCIAL.
+    // The previous screen (where the user requested the OTP) must:
+    // 1. Store the phone number (e.g., in localStorage).
+    // 2. Call signInWithPhoneNumber() to send the code and get the confirmationResult.
+    // 3. Store the *serialized* confirmationResult object (or a required ID) in sessionStorage/localStorage, 
+    //    or manage the state using server-side logic (most secure).
+    
+    // MOCK: Assuming phone is in storage, and confirmationResult is implicitly available or re-sent.
+    const storedPhone = localStorage.getItem('phoneNumberForOTP') || 'Unknown Number';
+    let confirmationResult = null; // In a real app, this would be retrieved or set by the resend flow.
+    
+    // --- MANDATORY FIREBASE PHONE AUTH SETUP (Recaptcha) ---
+    function setupRecaptcha() {
+        if (!auth) {
+            console.error("Firebase Auth not initialized. Cannot set up ReCAPTCHA.");
+            showMessage("System Error: Authentication setup failed.", 'error');
+            return;
+        }
+
+        // CRITICAL FIX: Use the imported RecaptchaVerifier class
+        window.recaptchaVerifier = new RecaptchaVerifier('recaptcha-container', {
+            'size': 'invisible', 
+            'callback': (response) => {
+                // reCAPTCHA solved. This is not used for invisible setup.
+                console.log("Recaptcha verified.");
+            },
+            'expired-callback': () => {
+                showMessage("reCAPTCHA expired, please try again.", 'error');
+            }
+        }, auth);
+        
+        // Render the verifier widget.
+        window.recaptchaVerifier.render().catch(error => {
+            console.error("Recaptcha render failed:", error);
+            showMessage("Security check failed to load. Please refresh.", 'error');
+        });
+    }
+
+    // --- Initialization: Setup and Info Prompt ---
+    window.addEventListener('load', () => {
+        setupRecaptcha();
+        showMessage(`Please enter the code sent to ${storedPhone}.`, 'info', 0); // Display indefinitely
+    });
+
+    // --- Verification Logic (Form Submission Handler) ---
+    otpForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        toggleLoading(true);
+
+        const otpCode = otpCodeInput.value.trim();
+        if (!otpCode || otpCode.length !== 6) {
+            showMessage("Please enter a valid 6-digit code.", 'error');
+            toggleLoading(false);
+            return;
+        }
+
+        try {
+            // **DEVELOPED LOGIC:** This is the core verification step.
+
+            if (!confirmationResult) {
+                 // Fallback or explicit instruction if confirmationResult is missing
+                 showMessage("Verification setup incomplete. Please re-enter your phone number on the sign-in page.", 'error');
+                 toggleLoading(false);
+                 return;
+            }
+
+            // CRITICAL FIX: Uncomment the actual verification code
+            const userCredential = await confirmationResult.confirm(otpCode);
+            const user = userCredential.user;
+
+            // Success message and redirection upon successful verification
+            showMessage("Verification successful! Redirecting...", 'success');
+            
+            setTimeout(() => {
+                window.location.href =  'personal_information.html';
+            }, 1000);
+
+        } catch (error) {
+            console.error("OTP Verification Error:", error);
+            let errorMessage = "Invalid or expired code. Please try again.";
+            if (error.code === 'auth/code-expired') {
+                 errorMessage = "The code has expired. Please resend it.";
+            } else if (error.code === 'auth/invalid-verification-code') {
+                 errorMessage = "The code is incorrect. Please check the digits and try again.";
+            } else if (error.code === 'auth/too-many-requests') {
+                 errorMessage = "You have made too many attempts. Please try again later.";
+            }
+            showMessage(errorMessage, 'error', 6000);
+        } finally {
+            toggleLoading(false);
+        }
+    });
+    
+    // --- Resend Logic (Re-triggering the send code process) ---
+    resendButton.addEventListener('click', async () => {
+        if (storedPhone === 'Unknown Number' || !window.recaptchaVerifier) {
+            showMessage("Cannot resend. Phone number or security check missing.", 'error');
+            return;
+        }
+        
+        // Prevent clicking while cooldown is active
+        if (resendButton.dataset.cooldown === 'true') return;
+
+        toggleLoading(true);
+
+        try {
+            // **DEVELOPED LOGIC:** This re-sends the code using the phone number.
+            // It gets a NEW confirmationResult which overwrites the old one.
+            // CRITICAL FIX: Uncomment the actual resend code
+            confirmationResult = await signInWithPhoneNumber(auth, storedPhone, window.recaptchaVerifier);
+
+            // Show the actual success message after a real resend
+            showMessage("New code has been sent. Please check your phone.", 'success', 5000);
+            
+            // Implement a 60-second cooldown to prevent spamming
+            resendButton.disabled = true;
+            resendButton.dataset.cooldown = 'true';
+            let countdown = 60;
+            resendButton.textContent = `Resend Code (${countdown}s)`;
+            const interval = setInterval(() => {
+                countdown--;
+                resendButton.textContent = `Resend Code (${countdown}s)`;
+                if (countdown <= 0) {
+                    clearInterval(interval);
+                    resendButton.textContent = 'Resend Code';
+                    resendButton.disabled = false;
+                    resendButton.dataset.cooldown = 'false';
+                }
+            }, 1000);
+
+        } catch (error) {
+            console.error("Resend Error:", error);
+            showMessage(`Failed to resend code: ${error.message}`, 'error', 6000);
+        } finally {
+            // Loading state is managed by the resend cooldown mechanism now
+            if (resendButton.dataset.cooldown !== 'true') {
+                 toggleLoading(false);
+            }
+        }
+    });
+
+</script>
+</body>
+</html>

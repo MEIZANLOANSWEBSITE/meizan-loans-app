@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEIZAN LOANS - Approval Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fb923c; /* Orange-300 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+            margin: 0;
+        }
+        .dashboard-card {
+            background-color: #ffffff;
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+        }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px dashed #e5e7eb; /* Gray-200 */
+        }
+        .data-row:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-weight: 500;
+            color: #4b5563; /* Gray-600 */
+        }
+        .value {
+            font-weight: 700;
+            color: #16a34a; /* Green-600 */
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #16a34a;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style for custom message box */
+        #messageBox {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            color: white;
+            z-index: 2000;
+            display: none;
+            max-width: 350px;
+        }
+        .msg-success { background-color: #10b981; } /* Emerald-500 */
+        .msg-error { background-color: #ef4444; } /* Red-500 */
+        .msg-info { background-color: #3b82f6; } /* Blue-500 */
+    </style>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Use a global variable to store the authentication state and firestore instance
+        window.firebase = {
+            db: null,
+            auth: null,
+            userId: null
+        };
+
+     // --- FIREBASE CONFIGURATION (Must be loaded BEFORE any <script type="module"> block) ---
+
+// Your web app's Firebase configuration (provided by the user)
+const firebaseConfig = {
+    apiKey: "AIzaSyD1uoq-EYbTEXVvp3xFl2TeTylcI03VoDw",
+    authDomain: "meizan-loans.firebaseapp.com",
+    projectId: "meizan-loans",
+    storageBucket: "meizan-loans.firebasestorage.app",
+    messagingSenderId: "1069728158354",
+    appId: "1:1069728158354:web:52e98096eed5d3f02d4c4b",
+    measurementId: "G-MV0PW489GD"
+};
+
+// App ID used for Firestore path construction (e.g., artifacts/meizanloans/...)
+const appId = "meizanloans"; 
+
+// Make config and ID globally available for the module scripts to use
+window.firebaseConfig = firebaseConfig;
+window.appId = appId;
+        if (Object.keys(firebaseConfig).length > 0) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                window.firebase.db = getFirestore(app);
+                window.firebase.auth = getAuth(app);
+                // setLogLevel('debug'); // Uncomment for debugging
+                
+                // Sign in logic
+                const auth = window.firebase.auth;
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    signInWithCustomToken(auth, __initial_auth_token).catch(e => {
+                        console.error("Custom token sign-in failed:", e);
+                        signInAnonymously(auth);
+                    });
+                } else {
+                    signInAnonymously(auth);
+                }
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+                // Fallback for environment where Firebase config is not provided
+            }
+        }
+
+        // Expose Firebase utilities globally for use in the main script block
+        window.getAuth = getAuth;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.getFirestore = getFirestore;
+        window.doc = doc;
+        window.getDoc = getDoc;
+        window.setDoc = setDoc;
+        window.onSnapshot = onSnapshot;
+        window.collection = collection;
+        window.query = query;
+        window.where = where;
+        window.getDocs = getDocs;
+    </script>
+</head>
+<body>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="messageBox" role="alert"></div>
+
+    <div class="dashboard-card">
+        <div class="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
+            <h1 class="text-3xl font-extrabold text-orange-600">
+                <span class="text-green-600">MEIZAN</span> LOANS
+            </h1>
+            <button id="logoutButton" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg transition duration-200">
+                Logout
+            </button>
+        </div>
+
+        <!-- User ID Display (Mandatory for multi-user apps) -->
+        <div class="text-sm font-mono text-gray-500 mb-4 border-b pb-2">
+            User ID: <span id="userIdDisplay" class="font-bold text-gray-700 break-all">Loading...</span>
+        </div>
+
+        <h2 class="text-2xl font-bold mb-6 text-green-600" id="statusHeader">Application Status: Checking...</h2>
+
+        <div id="loanDetailsSection" class="hidden">
+            <h3 class="text-xl font-semibold mb-4 text-orange-600">Approved Loan Details</h3>
+
+            <div class="data-row">
+                <span class="label">Approved Amount:</span>
+                <span id="approvedAmount" class="value">KSH 0</span>
+            </div>
+            <div class="data-row">
+                <span class="label">Trust Fee (3%):</span>
+                <span id="trustFee" class="value text-red-600">KSH 0</span>
+            </div>
+            <div class="data-row bg-green-50 rounded-lg p-3 mt-2">
+                <span class="label font-bold text-lg text-green-700">Net Disbursed Amount:</span>
+                <span id="netDisbursed" class="value text-lg text-green-700">KSH 0</span>
+            </div>
+            <div class="data-row">
+                <span class="label">Repayment Due:</span>
+                <span id="repaymentDue" class="value">KSH 0</span>
+            </div>
+            <div class="data-row">
+                <span class="label">Due Date:</span>
+                <span id="dueDate" class="value">--</span>
+            </div>
+
+            <div class="mt-8 flex flex-col sm:flex-row gap-4">
+                <button id="withdrawButton" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg shadow-green-200">
+                    Pay Trust Fee & Withdraw Loan
+                </button>
+                <button id="repaymentButton" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg shadow-orange-200">
+                    Make Repayment
+                </button>
+            </div>
+        </div>
+
+        <div id="pendingMessage" class="hidden mt-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg">
+            <p class="font-semibold">Application Pending Review</p>
+            <p class="text-sm">Thank you for submitting your financial details. Your application is currently under review by our team. We will notify you of the approval status shortly.</p>
+        </div>
+
+        <div id="rejectedMessage" class="hidden mt-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg">
+            <p class="font-semibold">Application Rejected</p>
+            <p class="text-sm">We regret to inform you that your application could not be approved at this time. Please ensure all information is accurate and try again in 30 days.</p>
+        </div>
+
+    </div>
+
+<script type="module">
+    // Retrieve global Firebase objects
+    const { auth, db, doc, getDoc, onAuthStateChanged, setDoc } = window;
+    
+    // Global variables
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    let userId = null;
+
+    // DOM Elements
+    const statusHeader = document.getElementById('statusHeader');
+    const loanDetailsSection = document.getElementById('loanDetailsSection');
+    const pendingMessage = document.getElementById('pendingMessage');
+    const rejectedMessage = document.getElementById('rejectedMessage');
+    const withdrawButton = document.getElementById('withdrawButton');
+    const repaymentButton = document.getElementById('repaymentButton');
+    const logoutButton = document.getElementById('logoutButton');
+    const userIdDisplay = document.getElementById('userIdDisplay');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const messageBox = document.getElementById('messageBox');
+
+    // --- Utility Functions ---
+    function toggleLoading(show) {
+        loadingOverlay.style.display = show ? 'flex' : 'none';
+    }
+
+    function showMessage(message, type = 'info', duration = 3000) {
+        messageBox.textContent = message;
+        messageBox.className = '';
+        messageBox.classList.add(type === 'success' ? 'msg-success' : type === 'error' ? 'msg-error' : 'msg-info');
+        messageBox.style.display = 'block';
+        setTimeout(() => {
+            messageBox.style.display = 'none';
+        }, duration);
+    }
+
+    // --- Core Logic ---
+
+    // Simple loan calculation function (can be modified for real logic)
+    function calculateLoan(annualIncome) {
+        let approvedAmount = Math.min(annualIncome * 0.1, 50000); // Max 10% of income, capped at 50,000
+        approvedAmount = Math.max(approvedAmount, 5000); // Minimum loan of 5,000
+        approvedAmount = Math.round(approvedAmount / 100) * 100; // Round to nearest 100
+        
+        const trustFeeRate = 0.03; // 3%
+        const repaymentRate = 0.15; // 15% interest
+
+        const trustFee = Math.round(approvedAmount * trustFeeRate);
+        const netDisbursed = approvedAmount - trustFee;
+        const repaymentDue = Math.round(approvedAmount * (1 + repaymentRate));
+
+        // Calculate due date (30 days from now)
+        const date = new Date();
+        date.setDate(date.getDate() + 30);
+        const dueDate = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+        return {
+            approvedAmount: approvedAmount,
+            trustFee: trustFee,
+            netDisbursed: netDisbursed,
+            repaymentDue: repaymentDue,
+            dueDate: dueDate,
+            loanStatus: 'Approved'
+        };
+    }
+
+    function renderLoanDetails(loanDetails) {
+        document.getElementById('approvedAmount').textContent = `KSH ${loanDetails.approvedAmount.toLocaleString()}`;
+        document.getElementById('trustFee').textContent = `KSH ${loanDetails.trustFee.toLocaleString()}`;
+        document.getElementById('netDisbursed').textContent = `KSH ${loanDetails.netDisbursed.toLocaleString()}`;
+        document.getElementById('repaymentDue').textContent = `KSH ${loanDetails.repaymentDue.toLocaleString()}`;
+        document.getElementById('dueDate').textContent = loanDetails.dueDate;
+    }
+
+
+    async function loadUserProfile(currentUserId) {
+        if (!db) return; // Ensure Firebase is initialized
+
+        toggleLoading(true);
+        userIdDisplay.textContent = currentUserId;
+
+        try {
+            const userDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/profile/info`);
+            const docSnap = await getDoc(userDocRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const loanStatus = data.loanStatus || 'Not Applied';
+                const registrationStep = data.registrationStep || 'personal_info';
+
+                loanDetailsSection.classList.add('hidden');
+                pendingMessage.classList.add('hidden');
+                rejectedMessage.classList.add('hidden');
+                statusHeader.classList.remove('text-green-600', 'text-red-600', 'text-yellow-600');
+                
+                if (loanStatus === 'Approved') {
+                    // Loan has been approved, display details
+                    statusHeader.textContent = 'Application Status: Approved';
+                    statusHeader.classList.add('text-green-600');
+                    loanDetailsSection.classList.remove('hidden');
+
+                    // If loan details are missing, recalculate them and save them (or load them)
+                    let loanDetails = data.loanDetails;
+                    if (!loanDetails) {
+                         // Fallback: If income is available, calculate and save
+                        if (data.annualIncome) {
+                            loanDetails = calculateLoan(parseFloat(data.annualIncome));
+                            await setDoc(userDocRef, { loanDetails: loanDetails }, { merge: true });
+                        } else {
+                            // If no income, set minimal loan and warn (should be handled better in a real app)
+                             loanDetails = {
+                                approvedAmount: 5000, trustFee: 150, netDisbursed: 4850, 
+                                repaymentDue: 5750, dueDate: '30 days', loanStatus: 'Approved'
+                            };
+                            showMessage("Warning: Income data missing, displaying minimum loan offer.", 'info');
+                        }
+                    }
+
+                    renderLoanDetails(loanDetails);
+                    
+                } else if (registrationStep === 'approved' || registrationStep === 'financial_info') {
+                    // Application submitted but status isn't 'Approved' yet (Pending)
+                    statusHeader.textContent = 'Application Status: Pending Review';
+                    statusHeader.classList.add('text-yellow-600');
+                    pendingMessage.classList.remove('hidden');
+
+                } else if (loanStatus === 'Rejected') {
+                    // Loan was explicitly rejected
+                    statusHeader.textContent = 'Application Status: Rejected';
+                    statusHeader.classList.add('text-red-600');
+                    rejectedMessage.classList.remove('hidden');
+                } else {
+                    // Application is incomplete, redirect to start
+                    showMessage("Application incomplete. Redirecting to personal information...", 'info');
+                    setTimeout(() => {
+                        // FIX: Use full file name for redirect
+                        window.location.href = 'personal_information.html'; 
+                    }, 2000);
+                }
+
+            } else {
+                showMessage("No application profile found. Redirecting to start...", 'error');
+                setTimeout(() => {
+                    // FIX: Use full file name for redirect
+                    window.location.href = 'personal_information.html'; 
+                }, 2000);
+            }
+        } catch (error) {
+            console.error("Error loading user profile:", error);
+            showMessage("An error occurred while fetching your data.", 'error');
+        } finally {
+            toggleLoading(false);
+        }
+    }
+
+    // --- Event Listeners ---
+    logoutButton.addEventListener('click', async () => {
+        if (auth) {
+            await auth.signOut();
+        }
+        showMessage("Logged out successfully. Redirecting...", 'info');
+        setTimeout(() => {
+            window.location.href = 'ENTRY PAGE.HTML';
+        }, 1500);
+    });
+    
+    withdrawButton.addEventListener('click', () => {
+        // Redirect to PayBill page
+        window.location.href = 'PAYBILL.HTML';
+    });
+    
+    repaymentButton.addEventListener('click', () => {
+        // Redirect to PayBill page (can be re-used for repayment)
+        window.location.href = 'PAYBILL.HTML?action=repay'; 
+    });
+
+
+    // --- Authentication Listener ---
+    if (typeof onAuthStateChanged !== 'undefined' && auth) {
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+                console.log("Authenticated User ID:", userId);
+                loadUserProfile(userId);
+            } else {
+                console.log("No user signed in. Redirecting to entry page.");
+                showMessage("You are not signed in. Redirecting...", 'error');
+                setTimeout(() => {
+                    window.location.href = 'ENTRY PAGE.HTML';
+                }, 2000);
+            }
+        });
+    } else {
+        console.error("Firebase Auth not initialized.");
+        showMessage("System error: Authentication service unavailable.", 'error');
+    }
+
+</script>
+</body>
+</html>

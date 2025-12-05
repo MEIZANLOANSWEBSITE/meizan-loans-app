@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> MEIZAN LOANS - Personal Information</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+<script src="firebase-config.js"></script> 
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fb923c; /* Orange-300 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #16a34a; /* Green-600 */
+        }
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            transition: all 0.15s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-3xl font-extrabold text-center text-green-700 mb-6">MEIZAN LOANS</h1>
+    <h2 class="text-xl font-medium mb-6 text-center text-orange-500">Step 1: Personal Information</h2>
+
+    <div id="messageBox" class="p-4 mb-6 rounded-lg text-sm bg-yellow-100 text-yellow-800" role="alert">
+        Loading your profile...
+    </div>
+
+    <form id="personalInfoForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="input-group">
+            <label for="fullName">Full Name</label>
+            <input type="text" id="fullName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" required>
+        </div>
+        <div class="input-group">
+            <label for="idNumber">National ID/Passport Number</label>
+            <input type="text" id="idNumber" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" required>
+        </div>
+        <div class="input-group">
+            <label for="dob">Date of Birth</label>
+            <input type="date" id="dob" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" required>
+        </div>
+        <div class="input-group">
+            <label for="maritalStatus">Marital Status</label>
+            <select id="maritalStatus" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" required>
+                <option value="">Select status</option>
+                <option value="Single">Single</option>
+                <option value="Married">Married</option>
+                <option value="Divorced">Divorced</option>
+                <option value="Widowed">Widowed</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="dependents">Number of Dependents</label>
+            <input type="number" id="dependents" min="0" value="0" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" required>
+        </div>
+        <div class="input-group">
+            <label for="location">Current Residence Location</label>
+            <input type="text" id="location" placeholder="e.g. Nairobi" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" required>
+        </div>
+
+        <div class="md:col-span-2 mt-4">
+            <button type="submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition duration-300 flex justify-center items-center" id="submitButton">
+                <span id="buttonText">Proceed to Financial Information</span>
+                <svg id="loadingSpinner" class="hidden animate-spin h-5 w-5 text-white ml-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </button>
+        </div>
+    </form>
+</div>
+
+<script type="module">
+    // Firebase SDK Imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+   
+        // ----------------------------------------------------------------------
+        // CRITICAL FIX: The Firebase configuration and initialization block has
+        // been REMOVED and is now handled by the 'firebase-config.js' script.
+        // We can now access 'app', 'auth', 'db', and 'appId' globally.
+        // --------------------------
+
+    // Initialize Firebase Services
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    
+    // Expose necessary services/variables globally
+    window.db = db;
+    window.auth = auth;
+    window.appId = appId;
+    window.onAuthStateChanged = onAuthStateChanged;
+    window.getDoc = getDoc;
+    window.doc = doc;
+    window.setDoc = setDoc;
+
+    // --- Authentication on Load (Initial Sign-in) ---
+    async function initialSignIn() {
+        try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+                console.log("Firebase: Signed in with custom token.");
+            } else {
+                await signInAnonymously(auth);
+                console.log("Firebase: Signed in anonymously.");
+            }
+        } catch (error) {
+            console.error("Firebase Auth Error:", error);
+        }
+    }
+    initialSignIn(); 
+    // --- DOM Elements ---
+    const personalInfoForm = document.getElementById('personalInfoForm');
+    const messageBox = document.getElementById('messageBox');
+    const submitButton = document.getElementById('submitButton');
+    const buttonText = document.getElementById('buttonText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    // --- Utility Functions ---
+    function showMessage(message, type = 'info', duration = 3000) {
+        messageBox.textContent = message;
+        messageBox.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
+        
+        switch (type) {
+            case 'error':
+                messageBox.classList.add('bg-red-100', 'text-red-800');
+                break;
+            case 'success':
+                messageBox.classList.add('bg-green-100', 'text-green-800');
+                break;
+            default:
+                messageBox.classList.add('bg-yellow-100', 'text-yellow-800');
+        }
+        messageBox.classList.remove('hidden');
+
+        setTimeout(() => {
+            messageBox.classList.add('hidden');
+        }, duration);
+    }
+
+    function toggleLoading(isLoading) {
+        submitButton.disabled = isLoading;
+        buttonText.textContent = isLoading ? 'Saving...' : 'Proceed to Financial Information';
+        loadingSpinner.classList.toggle('hidden', !isLoading);
+    }
+    
+    // --- Load Existing Data ---
+    async function loadUserData(currentUserId) {
+        try {
+            const userDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/profile/info`);
+            const docSnap = await getDoc(userDocRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                
+                // Flow Control: Check if user is already past this step
+                // CRITICAL FIX: Use the new file name for the redirect
+                if (data.registrationStep === 'financial_info' || data.registrationStep === 'approved') {
+                    showMessage("Information already complete. Redirecting to next step...", 'info');
+                    setTimeout(() => {
+                        window.location.href = 'financial_information.html'; 
+                    }, 1000);
+                    return;
+                }
+                
+                // Populate form fields with existing data
+                document.getElementById('fullName').value = data.fullName || '';
+                document.getElementById('idNumber').value = data.idNumber || '';
+                document.getElementById('dob').value = data.dob || '';
+                document.getElementById('maritalStatus').value = data.maritalStatus || '';
+                document.getElementById('dependents').value = data.dependents || 0;
+                document.getElementById('location').value = data.location || '';
+                
+                showMessage("Profile loaded. Please complete your details.", 'info');
+
+            } else {
+                showMessage("Welcome! Please fill in your personal information.", 'info');
+            }
+        } catch (error) {
+            console.error("Error loading user profile:", error);
+            showMessage("An error occurred while fetching your data.", 'error');
+        }
+    }
+
+    // --- Form Submission Handler ---
+    personalInfoForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!userId) {
+            showMessage("User not authenticated. Please refresh and sign in.", 'error');
+            return;
+        }
+        toggleLoading(true);
+
+        const formData = {
+            fullName: document.getElementById('fullName').value.trim(),
+            idNumber: document.getElementById('idNumber').value.trim(),
+            dob: document.getElementById('dob').value,
+            maritalStatus: document.getElementById('maritalStatus').value,
+            dependents: parseInt(document.getElementById('dependents').value),
+            location: document.getElementById('location').value.trim(),
+            // This is the status update field for progress tracking
+            registrationStep: 'financial_info'
+        };
+
+        try {
+            const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/profile/info`);
+
+            // Use setDoc with merge true to update existing fields without overwriting the whole document
+            await setDoc(userDocRef, formData, { merge: true });
+
+            showMessage("Personal information saved! Moving to financial details.", 'success');
+
+            // Redirect to the next step
+            // CRITICAL FIX: Updated redirect to new, correct file name
+            setTimeout(() => {
+                window.location.href = 'financial_information.html'; 
+            }, 1000);
+
+        } catch (error) {
+            console.error("Error saving data:", error);
+            showMessage(`Failed to save data: ${error.message}`, 'error');
+        } finally {
+            toggleLoading(false);
+        }
+    });
+
+    // --- Authentication Listener ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            userId = user.uid;
+            console.log("Authenticated User ID:", userId);
+            loadUserData(userId);
+        } else {
+            console.log("No user signed in. Redirecting to entry page.");
+            // If the user somehow lands here unauthenticated, redirect them to sign in
+            window.location.href = 'ENTRY PAGE.HTML';
+        }
+    });
+
+</script>
+</body>
+</html>
